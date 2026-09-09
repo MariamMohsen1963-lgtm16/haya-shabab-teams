@@ -76,33 +76,129 @@
   </div>
 
   <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+  import { getDatabase, ref, runTransaction } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
-    const startButton = document.getElementById("startButton");
-    const result = document.getElementById("result");
+  const firebaseConfig = {
+    apiKey: "AIzaSyAwCqQytfcnkzI8Sq-PoFFe0TXD0xJ4BpA",
+    authDomain: "haya-shabab-teams.firebaseapp.com",
+    databaseURL: "https://haya-shabab-teams-default-rtdb.firebaseio.com",
+    projectId: "haya-shabab-teams",
+    storageBucket: "haya-shabab-teams.firebasestorage.app",
+    messagingSenderId: "472407340554",
+    appId: "1:472407340554:web:3875a17b1b5594cc5ed1f3",
+    measurementId: "G-B2XCEVNL5"
+  };
 
-    window.joinTeam = async function() {
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-      startButton.disabled = true;
-      startButton.textContent = "جاري التوزيع...";
+  const startButton = document.getElementById("startButton");
+  const result = document.getElementById("result");
 
-      result.textContent = "";
+  const clientId =
+    localStorage.getItem("hayaClientId") || crypto.randomUUID();
 
-      try {
+  localStorage.setItem("hayaClientId", clientId);
 
-        result.textContent = "فريقك هو... ✨";
+  const teams = [
+    const teams = [
+  { key: "blue", name: "Blue Team 🔵", className: "blue" },
+  { key: "red", name: "Red Team 🔴", className: "red" },
+  { key: "green", name: "Green Team 🟢", className: "green" },
+  { key: "purple", name: "Purple Team 🟣", className: "purple" }
+];
 
-      } catch (error) {
+  window.joinTeam = async function () {
 
-        console.error(error);
+    startButton.disabled = true;
+    startButton.textContent = "جاري التوزيع...";
+    result.textContent = "";
 
-        result.textContent = "حصل خطأ، حاول مرة تانية.";
+    const stateRef = ref(db, "teamState");
 
-        startButton.disabled = false;
-        startButton.textContent = "ابدأ";
+    try {
+
+      const tx = await runTransaction(stateRef, (state) => {
+
+        state = state || {
+          counts: {
+            blue: 0,
+            red: 0,
+            green: 0,
+            purple: 0
+          },
+          assignments: {}
+        };
+
+        state.counts = state.counts || {
+          blue: 0,
+          red: 0,
+          green: 0,
+          purple: 0
+        };
+
+        state.assignments = state.assignments || {};
+
+        if (state.assignments[clientId]) {
+          return state;
+        }
+
+        const available = teams.filter(
+          team => (state.counts[team.key] || 0) < 13
+        );
+
+        if (available.length === 0) {
+          return;
+        }
+
+        const minCount = Math.min(
+          ...available.map(team => state.counts[team.key] || 0)
+        );
+
+        const chosen = available.find(
+          team => (state.counts[team.key] || 0) === minCount
+        );
+
+        state.counts[chosen.key] =
+          (state.counts[chosen.key] || 0) + 1;
+
+        state.assignments[clientId] = chosen.key;
+
+        return state;
+      });
+
+      if (!tx.committed) {
+        result.textContent = "الفرق اكتملت الـ52 شخص 🎉";
+        startButton.textContent = "اكتمل التوزيع";
+        return;
       }
-    };
 
-  </script>
+      const state = tx.snapshot.val();
+      const teamKey = state.assignments?.[clientId];
+
+      const team = teams.find(
+        team => team.key === teamKey
+      );
+
+      if (!team) {
+        throw new Error("Assignment not found");
+      }
+
+      result.textContent = `فريقك هو... ${team.name}`;
+      result.className = team.className;
+      startButton.textContent = "تم التوزيع ✨";
+
+    } catch (error) {
+
+      console.error(error);
+
+      result.textContent = "حصل خطأ، حاول مرة تانية.";
+      startButton.disabled = false;
+      startButton.textContent = "ابدأ";
+    }
+  };
+</script>
 
 </body>
 </html>
