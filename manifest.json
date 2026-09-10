@@ -1,0 +1,10 @@
+{
+  "name": "هيا شباب هيا شباب",
+  "short_name": "هيا شباب",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#333333",
+  "dir": "rtl",
+  "lang": "ar"
+}
