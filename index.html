@@ -282,7 +282,7 @@
               const available =
                 teams.filter(
                   team =>
-                    (state.counts[team.key] || 0) < 13
+                    (state.counts[team.key] || 0) < 15
                 );
 
 
@@ -327,7 +327,7 @@
         if (!tx.committed) {
 
           result.textContent =
-            "الفرق اكتملت الـ52 شخص 🎉";
+            "الفرق اكتملت الـ60 شخص 🎉";
 
           startButton.textContent =
             "اكتمل التوزيع";
