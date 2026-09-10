@@ -32,6 +32,17 @@
       color: #555;
     }
 
+    input {
+      width: 85%;
+      padding: 14px;
+      font-size: 18px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      text-align: center;
+      margin-top: 15px;
+      box-sizing: border-box;
+    }
+
     button {
       margin-top: 25px;
       padding: 15px 35px;
@@ -64,24 +75,39 @@
 <body>
 
   <div class="box">
+
     <h1>هيا شباب هيا شباب ✨</h1>
 
-    <p>مستعد تعرف فريقك؟ ✨</p>
+    <p>اكتب اسمك واعرف فريقك ✨</p>
+
+    <input
+      type="text"
+      id="nameInput"
+      placeholder="اكتب اسمك هنا"
+      maxlength="50"
+    >
+
+    <br>
 
     <button id="startButton">
       ابدأ
     </button>
 
     <div id="result"></div>
+
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+
     import {
       getDatabase,
       ref,
       runTransaction
     } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyAwCqQytfcnkzI8Sq-PoFFe0TXD0xJ4BpA",
@@ -94,16 +120,21 @@
       measurementId: "G-B2XCEVNL5"
     };
 
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+
     const startButton = document.getElementById("startButton");
     const result = document.getElementById("result");
+    const nameInput = document.getElementById("nameInput");
+
 
     const clientId =
       localStorage.getItem("hayaClientId") || crypto.randomUUID();
 
     localStorage.setItem("hayaClientId", clientId);
+
 
     const teams = [
       { key: "blue", name: "Blue Team 🔵", className: "blue" },
@@ -112,15 +143,31 @@
       { key: "purple", name: "Purple Team 🟣", className: "purple" }
     ];
 
+
     async function joinTeam() {
+
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        result.textContent = "اكتب اسمك الأول ❤️";
+        result.className = "";
+        return;
+      }
+
+
       startButton.disabled = true;
+      nameInput.disabled = true;
+
       startButton.textContent = "جاري التوزيع...";
       result.textContent = "";
       result.className = "";
 
+
       const stateRef = ref(db, "teamState");
 
+
       try {
+
         const tx = await runTransaction(stateRef, (state) => {
 
           state = state || {
@@ -133,6 +180,7 @@
             assignments: {}
           };
 
+
           state.counts = state.counts || {
             blue: 0,
             red: 0,
@@ -140,19 +188,24 @@
             purple: 0
           };
 
+
           state.assignments = state.assignments || {};
+
 
           if (state.assignments[clientId]) {
             return state;
           }
 
+
           const available = teams.filter(
             team => (state.counts[team.key] || 0) < 13
           );
 
+
           if (available.length === 0) {
             return;
           }
+
 
           const minCount = Math.min(
             ...available.map(
@@ -160,49 +213,94 @@
             )
           );
 
+
           const chosen = available.find(
             team => (state.counts[team.key] || 0) === minCount
           );
 
+
           state.counts[chosen.key] =
             (state.counts[chosen.key] || 0) + 1;
 
-          state.assignments[clientId] = chosen.key;
+
+          state.assignments[clientId] = {
+            name: name,
+            team: chosen.key
+          };
+
 
           return state;
+
         });
 
+
         if (!tx.committed) {
-          result.textContent = "الفرق اكتملت الـ52 شخص 🎉";
-          startButton.textContent = "اكتمل التوزيع";
+
+          result.textContent =
+            "الفرق اكتملت الـ52 شخص 🎉";
+
+          startButton.textContent =
+            "اكتمل التوزيع";
+
           return;
         }
 
+
         const state = tx.snapshot.val();
-        const teamKey = state.assignments?.[clientId];
 
-        const team = teams.find(
-          team => team.key === teamKey
-        );
+        const assignment =
+          state.assignments?.[clientId];
 
-        if (!team) {
+
+        if (!assignment) {
           throw new Error("Assignment not found");
         }
 
-        result.textContent = `فريقك هو... ${team.name}`;
-        result.className = team.className;
-        startButton.textContent = "تم التوزيع ✨";
+
+        const team = teams.find(
+          team => team.key === assignment.team
+        );
+
+
+        if (!team) {
+          throw new Error("Team not found");
+        }
+
+
+        result.textContent =
+          `فريقك هو... ${team.name}`;
+
+        result.className =
+          team.className;
+
+
+        startButton.textContent =
+          "تم التوزيع ✨";
+
 
       } catch (error) {
+
         console.error(error);
 
-        result.textContent = "حصل خطأ، حاول مرة تانية.";
+        result.textContent =
+          "حصل خطأ، حاول مرة تانية.";
+
+        nameInput.disabled = false;
+
         startButton.disabled = false;
-        startButton.textContent = "ابدأ";
+
+        startButton.textContent =
+          "ابدأ";
       }
+
     }
 
-    startButton.addEventListener("click", joinTeam);
+
+    startButton.addEventListener(
+      "click",
+      joinTeam
+    );
+
   </script>
 
 </body>
