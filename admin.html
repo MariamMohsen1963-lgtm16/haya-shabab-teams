@@ -1,8 +1,11 @@
-<!DOCTYPE html><html lang="ar" dir="rtl">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>متابعة الفرق</title>  <style>
+  <title>متابعة الفرق</title>
+
+  <style>
     body {
       font-family: Arial, sans-serif;
       background:#f5f5f5;
@@ -67,20 +70,92 @@
       margin:15px 0;
       color:#555;
     }
-  </style></head><body>  <div class="box"><h1>📋 متابعة الفرق</h1>
 
-<div class="counts">
-  <div class="count blue">🔵 Blue<br><span id="blueCount">0</span> / 15</div>
-  <div class="count red">🔴 Red<br><span id="redCount">0</span> / 15</div>
-  <div class="count green">🟢 Green<br><span id="greenCount">0</span> / 15</div>
-  <div class="count purple">🟣 Purple<br><span id="purpleCount">0</span> / 15</div>
-</div>
+    .swap-box {
+      background:white;
+      padding:20px;
+      margin-top:25px;
+      border-radius:15px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    }
 
-<div id="status">جاري تحميل الأسماء...</div>
+    .swap-box h2 {
+      text-align:center;
+      margin-top:0;
+    }
 
-<div id="people"></div>
+    select {
+      width:100%;
+      padding:12px;
+      margin:8px 0;
+      font-size:16px;
+      border-radius:8px;
+      border:1px solid #ccc;
+      box-sizing:border-box;
+    }
 
-  </div>  <script type="module">
+    #swapButton {
+      width:100%;
+      padding:13px;
+      margin-top:10px;
+      font-size:17px;
+      border:none;
+      border-radius:8px;
+      background:#333;
+      color:white;
+      cursor:pointer;
+    }
+
+    #swapButton:disabled {
+      background:#aaa;
+    }
+
+    #swapMessage {
+      text-align:center;
+      margin-top:15px;
+      font-weight:bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="box">
+
+    <h1>📋 متابعة الفرق</h1>
+
+    <div class="counts">
+      <div class="count blue">🔵 Blue<br><span id="blueCount">0</span> / 15</div>
+      <div class="count red">🔴 Red<br><span id="redCount">0</span> / 15</div>
+      <div class="count green">🟢 Green<br><span id="greenCount">0</span> / 15</div>
+      <div class="count purple">🟣 Purple<br><span id="purpleCount">0</span> / 15</div>
+    </div>
+
+    <div id="status">جاري تحميل الأسماء...</div>
+
+    <div id="people"></div>
+
+    <div class="swap-box">
+
+      <h2>🔄 تبديل الأشخاص</h2>
+
+      <select id="person1">
+        <option value="">اختاري الشخص الأول</option>
+      </select>
+
+      <select id="person2">
+        <option value="">اختاري الشخص الثاني</option>
+      </select>
+
+      <button id="swapButton">تبديل 🔄</button>
+
+      <div id="swapMessage"></div>
+
+    </div>
+
+  </div>
+
+  <script type="module">
 
     import { initializeApp }
       from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
@@ -88,8 +163,10 @@
     import {
       getDatabase,
       ref,
-      onValue
+      onValue,
+      runTransaction
     } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyAwCqQytfcnkzI8Sq-PoFFe0TXD0xJ4BpA",
@@ -102,94 +179,304 @@
       measurementId: "G-B2XCEVNL5"
     };
 
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+
 
     const blueCount = document.getElementById("blueCount");
     const redCount = document.getElementById("redCount");
     const greenCount = document.getElementById("greenCount");
     const purpleCount = document.getElementById("purpleCount");
+
     const people = document.getElementById("people");
     const status = document.getElementById("status");
 
+    const person1 = document.getElementById("person1");
+    const person2 = document.getElementById("person2");
+    const swapButton = document.getElementById("swapButton");
+    const swapMessage = document.getElementById("swapMessage");
+
     const stateRef = ref(db, "teamState");
+
+
+    const teamNames = {
+      blue: "🔵 Blue Team",
+      red: "🔴 Red Team",
+      green: "🟢 Green Team",
+      purple: "🟣 Purple Team"
+    };
+
+
+    const teamClasses = {
+      blue: "blue",
+      red: "red",
+      green: "green",
+      purple: "purple"
+    };
+
 
     onValue(stateRef, (snapshot) => {
 
       const state = snapshot.val();
 
+      person1.innerHTML =
+        '<option value="">اختاري الشخص الأول</option>';
+
+      person2.innerHTML =
+        '<option value="">اختاري الشخص الثاني</option>';
+
+
       if (!state) {
+
         status.textContent = "لسه مفيش حد دخل.";
         people.innerHTML = "";
+
         return;
       }
 
+
       const counts = state.counts || {};
       const assignments = state.assignments || {};
+
 
       blueCount.textContent = counts.blue || 0;
       redCount.textContent = counts.red || 0;
       greenCount.textContent = counts.green || 0;
       purpleCount.textContent = counts.purple || 0;
 
+
       people.innerHTML = "";
 
-      const teamNames = {
-        blue: "🔵 Blue Team",
-        red: "🔴 Red Team",
-        green: "🟢 Green Team",
-        purple: "🟣 Purple Team"
-      };
 
-      const teamClasses = {
-        blue: "blue",
-        red: "red",
-        green: "green",
-        purple: "purple"
-      };
+      const entries = Object.entries(assignments);
 
-      const list = Object.values(assignments);
 
-      if (list.length === 0) {
+      if (entries.length === 0) {
+
         status.textContent = "لسه مفيش حد دخل.";
+
         return;
       }
 
-      status.textContent = `عدد المشاركين: ${list.length}`;
 
-      list.forEach((assignment) => {
+      status.textContent =
+        `عدد المشاركين: ${entries.length}`;
+
+
+      entries.forEach(([clientId, assignment]) => {
 
         let name;
         let teamKey;
 
+
         if (typeof assignment === "string") {
+
           name = "اسم غير مسجل";
           teamKey = assignment;
+
         } else {
+
           name = assignment.name || "بدون اسم";
           teamKey = assignment.team;
+
         }
+
 
         const person = document.createElement("div");
         person.className = "person";
+
 
         const nameElement = document.createElement("div");
         nameElement.className = "name";
         nameElement.textContent = name;
 
+
         const teamElement = document.createElement("div");
         teamElement.className =
           `team ${teamClasses[teamKey] || ""}`;
+
         teamElement.textContent =
           teamNames[teamKey] || "فريق غير معروف";
+
 
         person.appendChild(nameElement);
         person.appendChild(teamElement);
 
         people.appendChild(person);
+
+
+        const text =
+          `${name} — ${teamNames[teamKey] || teamKey}`;
+
+
+        const option1 = document.createElement("option");
+        option1.value = clientId;
+        option1.textContent = text;
+
+
+        const option2 = document.createElement("option");
+        option2.value = clientId;
+        option2.textContent = text;
+
+
+        person1.appendChild(option1);
+        person2.appendChild(option2);
+
       });
 
     });
 
-  </script></body>
+
+    swapButton.addEventListener("click", async () => {
+
+      const id1 = person1.value;
+      const id2 = person2.value;
+
+
+      if (!id1 || !id2) {
+
+        swapMessage.textContent =
+          "اختاري الشخصين الأول ❤️";
+
+        return;
+      }
+
+
+      if (id1 === id2) {
+
+        swapMessage.textContent =
+          "مينفعش تختاري نفس الشخص مرتين 😅";
+
+        return;
+      }
+
+
+      swapButton.disabled = true;
+
+      swapMessage.textContent =
+        "جاري التبديل...";
+
+
+      try {
+
+        const result = await runTransaction(
+          stateRef,
+          state => {
+
+            if (!state || !state.assignments) {
+              return state;
+            }
+
+
+            const a = state.assignments[id1];
+            const b = state.assignments[id2];
+
+
+            if (!a || !b) {
+              return;
+            }
+
+
+            const team1 =
+              typeof a === "string"
+                ? a
+                : a.team;
+
+
+            const team2 =
+              typeof b === "string"
+                ? b
+                : b.team;
+
+
+            if (typeof a === "string") {
+
+              state.assignments[id1] = {
+                name: "شخص",
+                team: team2
+              };
+
+            } else {
+
+              state.assignments[id1].team = team2;
+
+            }
+
+
+            if (typeof b === "string") {
+
+              state.assignments[id2] = {
+                name: "شخص",
+                team: team1
+              };
+
+            } else {
+
+              state.assignments[id2].team = team1;
+
+            }
+
+
+            state.counts = {
+              blue: 0,
+              red: 0,
+              green: 0,
+              purple: 0
+            };
+
+
+            Object.values(state.assignments).forEach(assignment => {
+
+              const team =
+                typeof assignment === "string"
+                  ? assignment
+                  : assignment.team;
+
+
+              if (state.counts[team] !== undefined) {
+                state.counts[team]++;
+              }
+
+            });
+
+
+            return state;
+
+          }
+        );
+
+
+        if (result.committed) {
+
+          swapMessage.textContent =
+            "تم التبديل بنجاح ❤️🔄";
+
+          person1.value = "";
+          person2.value = "";
+
+        } else {
+
+          swapMessage.textContent =
+            "التبديل لم يتم.";
+
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        swapMessage.textContent =
+          "حصل خطأ، ومفيش أي تغيير اتعمل ❤️";
+
+      }
+
+
+      swapButton.disabled = false;
+
+    });
+
+  </script>
+
+</body>
 </html>
